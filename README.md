@@ -6,9 +6,9 @@ Support ja <=> zh
 
 
 
-Version: 1.0
+Version: 1.1
 
-Mirai version: 2.7-RC
+Mirai version: 2.9.0-M1
 
 Backend: Baidu Fanyi ([https://fanyi-api.baidu.com/](https://fanyi-api.baidu.com/))
 
@@ -31,10 +31,13 @@ Create configuration file in `config/kmt-translator/kmt-translator.yml`:
 ```yaml
 appid: <your-appid>
 appkey: <your-key>
+logfile: log.txt
+imagedir: images
 whitelist: 
   - <qq accounts>
 ```
 
+Remember to create data/kmt-translator/images for it to store images in messages
 
 
 Whitelisted members' every word will be translated

@@ -1,4 +1,4 @@
-package net.accel.kmt
+package net.accel.kmt.translate
 
 import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
@@ -19,16 +19,17 @@ import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 
-class Translator(appid: String, key: String, private val logger: MiraiLogger): Runnable {
+class Translator(appid: String, key: String, private val logger: MiraiLogger) {
     private var client: HttpClient
     private val randNum: Int
-    private val msgQueue: BlockingQueue<Action> = LinkedBlockingQueue()
+    private val msgQueue: BlockingQueue<MessageAction> = LinkedBlockingQueue()
     private val APPID: String = appid
     private val APPKEY: String = key
 
     private var running: Boolean = false
-    private var enabled: Boolean = false
+    private var thread: Thread? = null
 
     companion object {
         const val API = "https://fanyi-api.baidu.com/api/trans/vip/translate"
@@ -43,26 +44,22 @@ class Translator(appid: String, key: String, private val logger: MiraiLogger): R
     }
 
     fun start() {
-        if (!enabled) {
-            enabled = true
-            Thread(this, "translator").start()
-        }
-    }
-
-    fun waitStart() {
-        start()
-        while (!running) {
-            Thread.sleep(1)
+        synchronized(this) {
+            if (!running) {
+                thread = Thread(Runnable { run() }, "translator")
+                running = true
+                thread!!.start()
+            }
         }
     }
 
     fun waitStop() {
-        if (running) {
-            enabled = false
-            msgQueue.add(ExitAction())
-
-            while (running)
-                Thread.sleep(1)
+        synchronized(this) {
+            if (running) {
+                running = false
+                thread!!.join()
+                thread = null
+            }
         }
     }
 
@@ -85,8 +82,8 @@ class Translator(appid: String, key: String, private val logger: MiraiLogger): R
     }
 
     fun startTranslating(m: MessageAction) {
-        if (enabled)
-            msgQueue.add(m)
+        if (running)
+            msgQueue.offer(m)
     }
 
     private fun buildRequestBody(msg: MessageAction): BodyPublisher {
@@ -133,47 +130,44 @@ class Translator(appid: String, key: String, private val logger: MiraiLogger): R
         }
     }
 
-    override fun run() {
+    fun run() {
         try {
             msgQueue.clear()
             var nextSendTime = 0L
-            running = true
-            while (enabled) {
-                val m = msgQueue.take()
-                if (m is MessageAction) {
-                    val body = buildRequestBody(m)
-                    val request = HttpRequest.newBuilder()
-                        .POST(body)
-                        .version(HttpClient.Version.HTTP_1_1)
-                        .header("Content-Type", "application/x-www-form-urlencoded")
-                        .uri(URI.create(API))
-                        .build()
-                    while (nextSendTime > System.currentTimeMillis()) Thread.sleep(2)
-                    val response: HttpResponse<String> =
-                        client.send<String>(request, HttpResponse.BodyHandlers.ofString())
-                    logger.info("request sent")
-                    nextSendTime = System.currentTimeMillis() + 1001
-                    val result = decodeResult(response.body())
-                    if (result != null) {
-                        runBlocking {
-                            m.group.sendMessage(
-                                MessageChainBuilder()
-                                    .append(PlainText("From "))
-                                    .append(At(m.sender.id))
-                                    .append(PlainText("\n$result"))
-                                    .build()
-                            )
-                        }
-                    } else {
-                        logger.warning("decode failed")
+            while (running) {
+                val m = msgQueue.poll(1, TimeUnit.MILLISECONDS)
+                if (m == null)
+                    continue
+
+                val body = buildRequestBody(m)
+                val request = HttpRequest.newBuilder()
+                    .POST(body)
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .uri(URI.create(API))
+                    .build()
+                while (nextSendTime > System.currentTimeMillis()) Thread.sleep(2)
+                val response: HttpResponse<String> =
+                    client.send<String>(request, HttpResponse.BodyHandlers.ofString())
+                logger.info("request sent")
+                nextSendTime = System.currentTimeMillis() + 1001
+                val result = decodeResult(response.body())
+                if (result != null) {
+                    runBlocking {
+                        m.group.sendMessage(
+                            MessageChainBuilder()
+                                .append(PlainText("From "))
+                                .append(At(m.sender.id))
+                                .append(PlainText("\n$result"))
+                                .build()
+                        )
                     }
-                } else if (m is ExitAction) {
-                    break
+                } else {
+                    logger.warning("decode failed")
                 }
             }
         } catch (e: IOException) {
             logger.warning(e)
         }
-        running = false
     }
 }

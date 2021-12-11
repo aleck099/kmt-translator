@@ -1,4 +1,4 @@
-package net.accel.kmt
+package net.accel.kmt.translate
 
 class TranslationMethod(lF: String, lT: String, isWhitelisted: Boolean) {
     val langFrom: String

@@ -3,11 +3,11 @@ plugins {
     kotlin("jvm") version kotlinVersion
     kotlin("plugin.serialization") version kotlinVersion
 
-    id("net.mamoe.mirai-console") version "2.7-RC"
+    id("net.mamoe.mirai-console") version "2.9.0-M1"
 }
 
 group = "net.accel.kmt"
-version = "1.0"
+version = "1.1"
 
 repositories {
     mavenLocal()
@@ -16,5 +16,5 @@ repositories {
 }
 
 dependencies {
-    implementation("com.google.code.gson:gson:2.8.7")
+    implementation("com.google.code.gson:gson:2.8.9")
 }
