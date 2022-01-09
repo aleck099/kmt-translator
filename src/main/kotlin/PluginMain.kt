@@ -40,7 +40,7 @@ object PluginMain : KotlinPlugin(
     JvmPluginDescription(
         id = "net.accel.kmt.translator",
         name = "kmt-translator",
-        version = "1.1"
+        version = "1.2"
     ) {
         author("aleck099")
         info("指令启动自动翻译聊天内容".trimIndent())

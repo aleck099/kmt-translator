@@ -2,10 +2,8 @@ package net.accel.kmt.logging
 
 import kotlinx.coroutines.runBlocking
 import net.mamoe.mirai.contact.Member
-import net.mamoe.mirai.message.data.FlashImage
-import net.mamoe.mirai.message.data.Image
+import net.mamoe.mirai.message.data.*
 import net.mamoe.mirai.message.data.Image.Key.queryUrl
-import net.mamoe.mirai.message.data.MessageChain
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -38,8 +36,12 @@ class LogRecorder(val logFile: Path, val imageDir: Path) {
     }
 
     init {
-        if (!Files.isDirectory(imageDir))
-            throw RuntimeException("invalid image dir")
+        if (Files.exists(imageDir)) {
+            if (!Files.isDirectory(imageDir))
+                throw RuntimeException("invalid image dir")
+        } else {
+            Files.createDirectories(imageDir)
+        }
 
         LogManager.getLogManager().reset()
 
@@ -51,9 +53,9 @@ class LogRecorder(val logFile: Path, val imageDir: Path) {
                 sb.append('[')
                 sb.append(millsToString(record!!.millis))
                 sb.append("] [")
-                sb.append(record!!.level.name)
+                sb.append(record.level.name)
                 sb.append("] ")
-                sb.append(record!!.message)
+                sb.append(record.message)
                 sb.append('\n')
                 return sb.toString()
             }
@@ -104,7 +106,7 @@ class LogRecorder(val logFile: Path, val imageDir: Path) {
     }
 
     companion object {
-        val cbMap = "0123456789ABCDEF"
+        val cbMap = "0123456789ABCDEF".toByteArray()
         private fun bytesToString(b: ByteArray): String {
             val sb = StringBuilder(b.size * 2)
             b.forEach {
@@ -126,33 +128,54 @@ class LogRecorder(val logFile: Path, val imageDir: Path) {
             }
             return sb.toString()
         }
+
+        private fun intArrayToString(intArray: IntArray): String {
+            if (intArray.isEmpty())
+                return ""
+            if (intArray.size == 1)
+                return intArray[0].toString(10)
+            val sb = StringBuilder();
+            intArray.forEach {
+                sb.append(it)
+                sb.append(',')
+            }
+            sb.removeSuffix(",")
+            return sb.toString()
+        }
     }
 
     fun insertMessage(chain: MessageChain, sender: Member) {
         msgQueue.offer(MessageAndSender(chain, sender))
     }
 
+
     fun run() {
         while (running) {
-            val m = msgQueue.poll(1, TimeUnit.MILLISECONDS);
-            if (m == null)
-                continue
+            val m = msgQueue.poll(1, TimeUnit.MILLISECONDS) ?: continue;
 
             val qid: Long = m.sender.id
+            val mid = intArrayToString(m.msg.source.ids)
 
-            pLogger.info("[TXT] [$qid] " + escapeString(m.msg.contentToString()))
+            pLogger.info("[TXT] [$qid] [$mid] " + escapeString(m.msg.contentToString()))
             m.msg.forEach {
-                if (it is Image) {
-                    val md5str = bytesToString(it.md5)
-                    pLogger.info("[IMG] [$qid] $md5str")
-                    runBlocking {
-                        downloadImage(it.queryUrl(), md5str)
+                when (it) {
+                    is Image -> {
+                        val md5str = bytesToString(it.md5)
+                        pLogger.info("[IMG] [$qid] [$mid]  $md5str")
+                        runBlocking {
+                            downloadImage(it.queryUrl(), md5str)
+                        }
                     }
-                } else if (it is FlashImage) {
-                    val md5str = bytesToString(it.image.md5)
-                    pLogger.info("[IMG] [$qid] $md5str")
-                    runBlocking {
-                        downloadImage(it.image.queryUrl(), md5str)
+                    is FlashImage -> {
+                        val md5str = bytesToString(it.image.md5)
+                        pLogger.info("[IMG] [$qid] [$mid]  $md5str")
+                        runBlocking {
+                            downloadImage(it.image.queryUrl(), md5str)
+                        }
+                    }
+                    is QuoteReply -> {
+                        val ret = intArrayToString(it.source.ids)
+                        pLogger.info("[RPL] [$qid] $ret")
                     }
                 }
             }
