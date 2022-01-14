@@ -1,7 +1,6 @@
 package net.accel.kmt
 
 import kotlinx.coroutines.CompletableJob
-import net.accel.kmt.logging.LogRecorder
 import net.accel.kmt.translate.MessageAction
 import net.accel.kmt.translate.TranslationMethod
 import net.accel.kmt.translate.Translator
@@ -17,7 +16,6 @@ import net.mamoe.mirai.event.events.GroupMessageEvent
 import net.mamoe.mirai.event.events.NewFriendRequestEvent
 import net.mamoe.mirai.message.data.MessageChain
 import net.mamoe.mirai.message.data.PlainText
-import java.nio.file.Paths
 import java.util.*
 import java.util.regex.Pattern
 
@@ -40,14 +38,13 @@ object PluginMain : KotlinPlugin(
     JvmPluginDescription(
         id = "net.accel.kmt.translator",
         name = "kmt-translator",
-        version = "1.2"
+        version = "1.3"
     ) {
         author("aleck099")
         info("指令启动自动翻译聊天内容".trimIndent())
     }
 ) {
     private var translator: Translator? = null
-    private var recorder: LogRecorder? = null
     private val spacePattern = Pattern.compile(" ")
     private val whitelist = ArrayList<Long>()
 
@@ -96,9 +93,6 @@ object PluginMain : KotlinPlugin(
         Config.reload()
         translator = Translator(Config.appid, Config.appkey, logger)
         translator!!.start()
-        recorder = LogRecorder(Paths.get(dataFolder.absolutePath, Config.logfile),
-            Paths.get(dataFolder.absolutePath, Config.imagedir))
-        recorder!!.start()
         whitelist.clear()
         whitelist.addAll(Config.whitelist)
         //配置文件目录 "${dataFolder.absolutePath}/"
@@ -106,7 +100,6 @@ object PluginMain : KotlinPlugin(
         listeners[0] = eventChannel.subscribeAlways<GroupMessageEvent> {
             // 群消息
             logger.info("group message")
-            recorder!!.insertMessage(message, sender)
             val lines = toLines(message)
             val result = identify(lines, sender)
             if (result != null) {
@@ -137,8 +130,6 @@ object PluginMain : KotlinPlugin(
     override fun onDisable() {
         translator!!.waitStop()
         translator = null
-        recorder!!.stop()
-        recorder = null
         for (l in listeners) {
             l!!.complete()
         }
@@ -148,7 +139,5 @@ object PluginMain : KotlinPlugin(
 object Config: AutoSavePluginConfig("kmt-translator") {
     val appid by value<String>()
     val appkey by value<String>()
-    val logfile by value<String>()
-    val imagedir by value<String>()
     val whitelist: List<Long> by value()
 }

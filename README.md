@@ -6,7 +6,7 @@ Support ja <=> zh
 
 
 
-Version: 1.2
+Version: 1.3
 
 Mirai version: 2.9.2
 
@@ -33,8 +33,6 @@ Create configuration file in `config/<plugin name>/kmt-translator.yml`:
 ```yaml
 appid: <your-appid>
 appkey: <your-key>
-logfile: log.txt
-imagedir: images
 whitelist: 
   - <qq accounts>
 ```
@@ -68,10 +66,6 @@ You can specify the target language you want
 ```
 
 /tr c = Translate **to** Chinese
-
-## Note:
-
-Messages are recorded under `data/<plugin name>`
 
 
 
