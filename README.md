@@ -35,6 +35,8 @@ appid: <your-appid>
 appkey: <your-key>
 whitelist: 
   - <qq accounts>
+group_whitelist:
+  - <group ids>
 ```
 
 Remember to create data/kmt-translator/images for it to store images in messages
@@ -65,7 +67,7 @@ You can specify the target language you want
 测试
 ```
 
-/tr c = Translate **to** Chinese
+/tr c = Translate **TO** Chinese
 
 
 

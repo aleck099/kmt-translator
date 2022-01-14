@@ -135,20 +135,18 @@ class Translator(appid: String, key: String, private val logger: MiraiLogger) {
             msgQueue.clear()
             var nextSendTime = 0L
             while (running) {
-                val m = msgQueue.poll(1, TimeUnit.MILLISECONDS)
-                if (m == null)
-                    continue
+                val m = msgQueue.poll(1, TimeUnit.MILLISECONDS) ?: continue
 
                 val body = buildRequestBody(m)
-                val request = HttpRequest.newBuilder()
+                val request = HttpRequest.newBuilder(URI.create(API))
                     .POST(body)
                     .version(HttpClient.Version.HTTP_1_1)
                     .header("Content-Type", "application/x-www-form-urlencoded")
-                    .uri(URI.create(API))
+                    .header("User-Agent", "miral")
                     .build()
-                while (nextSendTime > System.currentTimeMillis()) Thread.sleep(2)
-                val response: HttpResponse<String> =
-                    client.send<String>(request, HttpResponse.BodyHandlers.ofString())
+                while (nextSendTime > System.currentTimeMillis())
+                    Thread.sleep(2)
+                val response: HttpResponse<String> = client.send<String>(request, HttpResponse.BodyHandlers.ofString())
                 logger.info("request sent")
                 nextSendTime = System.currentTimeMillis() + 1001
                 val result = decodeResult(response.body())

@@ -18,6 +18,7 @@ import net.mamoe.mirai.message.data.MessageChain
 import net.mamoe.mirai.message.data.PlainText
 import java.util.*
 import java.util.regex.Pattern
+import kotlin.collections.ArrayList
 
 /**
  * 使用 kotlin 版请把
@@ -47,6 +48,7 @@ object PluginMain : KotlinPlugin(
     private var translator: Translator? = null
     private val spacePattern = Pattern.compile(" ")
     private val whitelist = ArrayList<Long>()
+    private val group_whitelist = ArrayList<Long>()
 
     private val listeners: Array<CompletableJob?> = Array(4) { null }
 
@@ -95,19 +97,23 @@ object PluginMain : KotlinPlugin(
         translator!!.start()
         whitelist.clear()
         whitelist.addAll(Config.whitelist)
+        group_whitelist.clear()
+        group_whitelist.addAll(Config.group_whitelist)
         //配置文件目录 "${dataFolder.absolutePath}/"
         val eventChannel = GlobalEventChannel.parentScope(this)
         listeners[0] = eventChannel.subscribeAlways<GroupMessageEvent> {
             // 群消息
-            logger.info("group message")
-            val lines = toLines(message)
-            val result = identify(lines, sender)
-            if (result != null) {
-                logger.info("starting translating")
-                if (!result.isWhitelisted) {
-                    lines.removeFirst()
+            // logger.info("group message")
+            if (group.id in group_whitelist) {
+                val lines = toLines(message)
+                val result = identify(lines, sender)
+                if (result != null) {
+                    logger.info("starting translating")
+                    if (!result.isWhitelisted) {
+                        lines.removeFirst()
+                    }
+                    translator!!.startTranslating(MessageAction(lines, sender, group, result))
                 }
-                translator!!.startTranslating(MessageAction(lines, sender, group, result))
             }
         }
         listeners[1] = eventChannel.subscribeAlways<FriendMessageEvent>{
@@ -116,8 +122,9 @@ object PluginMain : KotlinPlugin(
             this.sender.sendMessage("RECEIVED")
         }
         listeners[2] = eventChannel.subscribeAlways<NewFriendRequestEvent>{
-            //不同意好友申请
-            reject()
+            //同意好友申请
+            logger.info("add friend")
+            accept()
         }
         listeners[3] = eventChannel.subscribeAlways<BotInvitedJoinGroupRequestEvent>{
             //同意加群申请
@@ -140,4 +147,5 @@ object Config: AutoSavePluginConfig("kmt-translator") {
     val appid by value<String>()
     val appkey by value<String>()
     val whitelist: List<Long> by value()
+    val group_whitelist: List<Long> by value()
 }
