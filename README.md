@@ -6,11 +6,13 @@ Support ja <=> zh
 
 
 
-Version: 1.3
+Version: 1.4
 
 Mirai version: 2.9.2
 
-Backend: Baidu Fanyi ([https://fanyi-api.baidu.com/](https://fanyi-api.baidu.com/))
+Backends:
+- Baidu Fanyi ([https://fanyi-api.baidu.com/](https://fanyi-api.baidu.com/))
+- Tencent Fanyi ([https://fanyi.qq.com/](https://fanyi.qq.com/))
 
 
 
@@ -60,14 +62,12 @@ Images,  faces, quotes won't be translated
 You can specify the target language you want
 
 ```
-/tr c
+/tr zh ja
 テスト
 
-/tr j
+/tr ja zh
 测试
 ```
-
-/tr c = Translate **TO** Chinese
 
 
 

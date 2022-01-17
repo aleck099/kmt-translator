@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "net.accel.kmt"
-version = "1.3"
+version = "1.4"
 
 repositories {
     mavenLocal()
@@ -17,4 +17,5 @@ repositories {
 
 dependencies {
     implementation("com.google.code.gson:gson:2.8.9")
+    implementation("com.tencentcloudapi:tencentcloud-sdk-java:3.1.322")
 }
