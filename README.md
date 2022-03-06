@@ -6,7 +6,7 @@ Support ja <=> zh
 
 
 
-Version: 1.4
+Version: 1.5
 
 Mirai version: 2.9.2
 

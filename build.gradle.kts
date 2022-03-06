@@ -1,13 +1,13 @@
 plugins {
-    id("net.mamoe.mirai-console") version "2.9.2"
-    val kotlinVersion = "1.5.10"
+    id("net.mamoe.mirai-console") version "2.10.0"
+    val kotlinVersion = "1.6.20-M1"
     kotlin("jvm") version kotlinVersion
     kotlin("plugin.serialization") version kotlinVersion
 
 }
 
 group = "net.accel.kmt"
-version = "1.4"
+version = "1.5"
 
 repositories {
     mavenLocal()
@@ -16,6 +16,6 @@ repositories {
 }
 
 dependencies {
-    implementation("com.google.code.gson:gson:2.8.9")
-    implementation("com.tencentcloudapi:tencentcloud-sdk-java:3.1.322")
+    implementation("com.google.code.gson:gson:2.9.0")
+    implementation("com.tencentcloudapi:tencentcloud-sdk-java:4.0.11")
 }

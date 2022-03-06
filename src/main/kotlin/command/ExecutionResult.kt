@@ -1,7 +1,5 @@
 package net.accel.kmt.command
 
-import io.ktor.client.features.*
-
 class ExecutionResult {
     val command: AbstractCommand?
     val success: Boolean

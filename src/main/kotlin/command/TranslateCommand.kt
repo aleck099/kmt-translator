@@ -4,13 +4,14 @@ import kotlinx.coroutines.runBlocking
 import net.accel.kmt.PluginMain
 import net.accel.kmt.translate.MessageAction
 import net.accel.kmt.translate.TranslationMethod
-import net.mamoe.mirai.message.data.*
-import java.util.*
+import net.mamoe.mirai.message.data.MessageChainBuilder
+import net.mamoe.mirai.message.data.PlainText
+import net.mamoe.mirai.message.data.QuoteReply
+import net.mamoe.mirai.message.data.source
 
 class TranslateCommand() : AbstractCommand("/tr") {
     companion object {
         val languages = arrayOf("zh", "ja")
-
     }
 
     override fun execute(plugin: PluginMain, source: CommandSource, args: List<String>, followingLines: List<String>) {

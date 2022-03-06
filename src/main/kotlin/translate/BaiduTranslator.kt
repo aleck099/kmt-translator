@@ -2,10 +2,6 @@ package net.accel.kmt.translate
 
 import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
-import kotlinx.coroutines.runBlocking
-import net.mamoe.mirai.message.data.MessageChainBuilder
-import net.mamoe.mirai.message.data.PlainText
-import net.mamoe.mirai.message.data.QuoteReply
 import net.mamoe.mirai.utils.MiraiLogger
 import java.net.URI
 import java.net.URLEncoder

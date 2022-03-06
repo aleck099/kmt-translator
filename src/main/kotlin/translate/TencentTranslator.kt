@@ -7,14 +7,11 @@ import com.tencentcloudapi.common.profile.HttpProfile
 import com.tencentcloudapi.tmt.v20180321.TmtClient
 import com.tencentcloudapi.tmt.v20180321.models.TextTranslateRequest
 import com.tencentcloudapi.tmt.v20180321.models.TextTranslateResponse
-import kotlinx.coroutines.runBlocking
-import net.mamoe.mirai.message.data.MessageChainBuilder
-import net.mamoe.mirai.message.data.PlainText
-import net.mamoe.mirai.message.data.QuoteReply
 import net.mamoe.mirai.utils.MiraiLogger
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import kotlin.math.log
 
 class TencentTranslator(
     private val APPID: String,
@@ -97,6 +94,9 @@ class TencentTranslator(
                     response = client.TextTranslate(request)
                 } catch (e: TencentCloudSDKException) {
                     logger.warning(e)
+                    continue
+                } catch (e: Throwable) {
+                    logger.warning("UNKNOWN ERROR: $e")
                     continue
                 }
                 logger.info("request sent")

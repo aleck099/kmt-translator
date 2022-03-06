@@ -5,7 +5,10 @@ import kotlinx.coroutines.runBlocking
 import net.accel.kmt.command.CommandSource
 import net.accel.kmt.command.Commands
 import net.accel.kmt.command.TranslateCommand
-import net.accel.kmt.translate.*
+import net.accel.kmt.translate.MessageAction
+import net.accel.kmt.translate.TencentTranslator
+import net.accel.kmt.translate.TranslationMethod
+import net.accel.kmt.translate.Translator
 import net.mamoe.mirai.console.data.AutoSavePluginConfig
 import net.mamoe.mirai.console.data.value
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
@@ -24,14 +27,13 @@ import java.util.regex.Pattern
 object PluginMain : KotlinPlugin(
     JvmPluginDescription(
         id = "net.accel.kmt.translator",
-        version = "1.4"
+        version = "1.5"
     ) {
         author("aleck099")
         info("指令启动自动翻译聊天内容")
     }
 ) {
     var translator: Translator = TencentTranslator(Config.appid, Config.appkey, 0, logger)
-    private val spacePattern = Pattern.compile(" ")
     val whitelist = ArrayList<Long>()
     val group_whitelist = ArrayList<Long>()
     val commands = Commands()
