@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "net.accel.kmt"
-version = "1.5"
+version = "1.6"
 
 repositories {
     mavenLocal()

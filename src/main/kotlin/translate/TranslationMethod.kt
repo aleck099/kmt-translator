@@ -1,3 +1,3 @@
 package net.accel.kmt.translate
 
-class TranslationMethod(val langFrom: String, val langTo: String, val isWhitelisted: Boolean)
+class TranslationMethod(val langFrom: String, val langTo: String)

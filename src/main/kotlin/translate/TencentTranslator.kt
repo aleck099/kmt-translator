@@ -6,12 +6,10 @@ import com.tencentcloudapi.common.profile.ClientProfile
 import com.tencentcloudapi.common.profile.HttpProfile
 import com.tencentcloudapi.tmt.v20180321.TmtClient
 import com.tencentcloudapi.tmt.v20180321.models.TextTranslateRequest
-import com.tencentcloudapi.tmt.v20180321.models.TextTranslateResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import net.mamoe.mirai.utils.MiraiLogger
-import java.util.concurrent.BlockingQueue
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit
-import kotlin.math.log
 
 class TencentTranslator(
     private val APPID: String,
@@ -19,14 +17,12 @@ class TencentTranslator(
     private val PROJID: Long,
     private val logger: MiraiLogger
 ) : Translator {
-    private val msgQueue: BlockingQueue<MessageAction> = LinkedBlockingQueue()
-    private var thread = Thread()
     private val credential = Credential(APPID, APPKEY)
     private val profile = HttpProfile()
     private val clientProfile = ClientProfile("HmacSHA256", profile)
     private val client: TmtClient
 
-    private var running: Boolean = false
+    private var lastSubmissionTime: Long = 0
 
     init {
         profile.reqMethod = "POST"
@@ -36,35 +32,9 @@ class TencentTranslator(
         client = TmtClient(credential, "ap-shanghai", clientProfile)
     }
 
-    override fun start() {
-        synchronized(this) {
-            if (!running) {
-                thread = Thread({ run() }, "translator")
-                running = true
-                thread.start()
-            }
-        }
-    }
-
-    override fun waitStop() {
-        synchronized(this) {
-            if (running) {
-                running = false
-                thread.join()
-            }
-        }
-    }
-
-    override fun startTranslating(m: MessageAction) {
-        synchronized(this) {
-            if (running)
-                msgQueue.offer(m)
-        }
-    }
-
-    private fun buildRequest(msg: MessageAction): TextTranslateRequest {
+    private fun buildRequest(lines: List<String>, method: TranslationMethod): TextTranslateRequest {
         val textBuilder = StringBuilder()
-        msg.lines.forEach {
+        lines.forEach {
             textBuilder.append(it)
             textBuilder.append('\n')
         }
@@ -73,38 +43,31 @@ class TencentTranslator(
 
         val request = TextTranslateRequest()
         request.sourceText = textBuilder.toString()
-        request.source = msg.method.langFrom
-        request.target = msg.method.langTo
+        request.source = method.langFrom
+        request.target = method.langTo
         request.projectId = PROJID
         return request
     }
 
-    private fun run() {
+    override suspend fun translate(lines: List<String>, method: TranslationMethod): String = withContext(Dispatchers.IO) {
         try {
-            msgQueue.clear()
-            var nextSendTime = 0L
-            while (running) {
-                val m = msgQueue.poll(1, TimeUnit.MILLISECONDS) ?: continue
+            val request = buildRequest(lines, method)
 
-                val request = buildRequest(m)
-                val response: TextTranslateResponse
-                while (nextSendTime > System.currentTimeMillis())
-                    Thread.sleep(2)
-                try {
-                    response = client.TextTranslate(request)
-                } catch (e: TencentCloudSDKException) {
-                    logger.warning(e)
-                    continue
-                } catch (e: Throwable) {
-                    logger.warning("UNKNOWN ERROR: $e")
-                    continue
-                }
-                logger.info("request sent")
-                nextSendTime = System.currentTimeMillis() + 201 // 5 requests in one second
-                m.successCallback.invoke(response.targetText)
+            val currentMillis = System.currentTimeMillis()
+            val delayMillis = lastSubmissionTime + 220 - currentMillis
+            if (delayMillis > 0) {
+                lastSubmissionTime = currentMillis + delayMillis
+                delay(delayMillis)
+            } else {
+                lastSubmissionTime = currentMillis
             }
-        } catch (e: Throwable) {
-            logger.warning(e)
+
+            logger.info("sending request")
+            val response = client.TextTranslate(request)
+            /* return */ response.targetText
+        } catch (e: TencentCloudSDKException) {
+            throw TranslatingException(e)
         }
     }
+
 }

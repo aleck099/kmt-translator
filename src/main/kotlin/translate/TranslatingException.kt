@@ -1,6 +1,6 @@
-package net.accel.kmt.command
+package net.accel.kmt.translate
 
-class CommandException : Exception {
+class TranslatingException: Exception {
     constructor() : super()
     constructor(s: String) : super(s)
     constructor(e: Throwable): super(e)

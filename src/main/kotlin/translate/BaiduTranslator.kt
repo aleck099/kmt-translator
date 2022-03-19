@@ -2,6 +2,9 @@ package net.accel.kmt.translate
 
 import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import net.mamoe.mirai.utils.MiraiLogger
 import java.net.URI
 import java.net.URLEncoder
@@ -12,18 +15,13 @@ import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.*
-import java.util.concurrent.BlockingQueue
-import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 class BaiduTranslator(private val APPID: String, private val APPKEY: String, private val logger: MiraiLogger) :
     Translator {
-    private var client: HttpClient
+    private val client: HttpClient
     private val randNum: Int
-    private val msgQueue: BlockingQueue<MessageAction> = LinkedBlockingQueue()
-
-    private var running: Boolean = false
-    private var thread = Thread()
+    private var lastSubmissionTime: Long = 0
 
     companion object {
         const val API = "https://fanyi-api.baidu.com/api/trans/vip/translate"
@@ -35,25 +33,6 @@ class BaiduTranslator(private val APPID: String, private val APPKEY: String, pri
         builder.followRedirects(HttpClient.Redirect.NORMAL)
         client = builder.build()
         randNum = Random().nextInt()
-    }
-
-    override fun start() {
-        synchronized(this) {
-            if (!running) {
-                thread = Thread({ run() }, "translator")
-                running = true
-                thread.start()
-            }
-        }
-    }
-
-    override fun waitStop() {
-        synchronized(this) {
-            if (running) {
-                running = false
-                thread.join()
-            }
-        }
     }
 
     private fun hexToString(b: ByteArray): String {
@@ -74,27 +53,21 @@ class BaiduTranslator(private val APPID: String, private val APPKEY: String, pri
         return hexToString(output)
     }
 
-    override fun startTranslating(m: MessageAction) {
-        synchronized(this) {
-            if (running)
-                msgQueue.offer(m)
-        }
-    }
-
-    private fun buildRequestBody(msg: MessageAction): BodyPublisher {
+    private fun buildRequestBody(lines: List<String>, method: TranslationMethod): BodyPublisher {
         val textBuilder = StringBuilder()
-        msg.lines.forEach {
+        lines.forEach {
             textBuilder.append(it)
             textBuilder.append('\n')
         }
+        textBuilder.deleteCharAt(textBuilder.length - 1)
         val text = textBuilder.toString()
         val r = StringBuilder(512)
         r.append("q=")
         r.append(URLEncoder.encode(text, StandardCharsets.UTF_8))
         r.append("&from=")
-        r.append(msg.method.langFrom)
+        r.append(method.langFrom)
         r.append("&to=")
-        r.append(msg.method.langTo)
+        r.append(method.langTo)
         r.append("&appid=")
         r.append(APPID)
         r.append("&salt=")
@@ -104,13 +77,13 @@ class BaiduTranslator(private val APPID: String, private val APPKEY: String, pri
         return HttpRequest.BodyPublishers.ofByteArray(r.toString().toByteArray(StandardCharsets.UTF_8))
     }
 
-    private fun decodeResult(jsonResult: String): String? {
+    private fun decodeResult(jsonResult: String): String {
         return try {
             val e = JsonParser.parseString(jsonResult)
             val root = e.asJsonObject
             val errorCode = root["error_code"]
             if (errorCode != null && errorCode.asInt != 52000) {
-                return null
+                throw TranslatingException("remote API returned error")
             }
             val sb = StringBuilder()
             val results = root["trans_result"].asJsonArray
@@ -119,40 +92,33 @@ class BaiduTranslator(private val APPID: String, private val APPKEY: String, pri
             }
             sb.toString()
         } catch (e: JsonParseException) {
-            null
+            throw TranslatingException(e)
         } catch (e: IllegalStateException) {
-            null
+            throw TranslatingException(e)
         }
     }
 
-    private fun run() {
-        try {
-            msgQueue.clear()
-            var nextSendTime = 0L
-            while (running) {
-                val m = msgQueue.poll(1, TimeUnit.MILLISECONDS) ?: continue
+    override suspend fun translate(lines: List<String>, method: TranslationMethod): String = withContext(Dispatchers.IO) {
+        val body = buildRequestBody(lines, method)
+        val request = HttpRequest.newBuilder(URI.create(API))
+            .POST(body)
+            .version(HttpClient.Version.HTTP_1_1)
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .header("User-Agent", "miral")
+            .build()
 
-                val body = buildRequestBody(m)
-                val request = HttpRequest.newBuilder(URI.create(API))
-                    .POST(body)
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .header("User-Agent", "miral")
-                    .build()
-                while (nextSendTime > System.currentTimeMillis())
-                    Thread.sleep(2)
-                val response: HttpResponse<String> = client.send<String>(request, HttpResponse.BodyHandlers.ofString())
-                logger.info("request sent")
-                nextSendTime = System.currentTimeMillis() + 1001 // one request per second
-                val result = decodeResult(response.body())
-                if (result != null) {
-                    m.successCallback.invoke(result)
-                } else {
-                    logger.warning("decode failed")
-                }
-            }
-        } catch (e: Throwable) {
-            logger.warning(e)
+        val currentMillis = System.currentTimeMillis()
+        val delayMillis = lastSubmissionTime + 1100 - currentMillis
+        if (delayMillis > 0) {
+            lastSubmissionTime = currentMillis + delayMillis
+            delay(delayMillis)
+        } else {
+            lastSubmissionTime = currentMillis
         }
+
+        logger.info("sending request")
+        val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+        /* return */ decodeResult(response.body())
     }
+
 }

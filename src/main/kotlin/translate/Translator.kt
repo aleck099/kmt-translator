@@ -1,7 +1,6 @@
 package net.accel.kmt.translate
 
 interface Translator {
-    fun start()
-    fun waitStop()
-    fun startTranslating(m: MessageAction)
+    @Throws(TranslatingException::class)
+    suspend fun translate(lines: List<String>, method: TranslationMethod) : String
 }
