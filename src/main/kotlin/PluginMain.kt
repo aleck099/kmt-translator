@@ -101,7 +101,7 @@ object PluginMain : KotlinPlugin(
                 if (args.isEmpty) {
                     // whitelist
                     if (sender.id in whitelist)
-                        translateWithRetry(group, message.source, followingLines, TranslationMethod("ja", "zh"))
+                        translateWithRetry(group, message.source, lines, TranslationMethod("ja", "zh"))
                 } else {
                     val innerArgs = args.get()
                     val method = if (innerArgs.isEmpty())
