@@ -8,7 +8,7 @@ Support ja <=> zh
 
 Version: 1.6
 
-Mirai version: 2.10.0
+Mirai version: 2.10.1
 
 Backends:
 - Baidu Fanyi ([https://fanyi-api.baidu.com/](https://fanyi-api.baidu.com/))
