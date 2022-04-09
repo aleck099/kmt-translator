@@ -58,18 +58,19 @@ object PluginMain : KotlinPlugin(
             Optional.of(arrayListOf())
     }
 
-    private suspend fun sendResult(target: Contact, source: MessageSource, str: String) {
-        target.sendMessage(MessageChainBuilder()
-            .append(QuoteReply(source))
-            .append(PlainText(str))
-            .build())
+    private suspend fun sendResult(target: Contact, source: MessageSource, str: String, quote: Boolean) {
+        val b = MessageChainBuilder()
+        if (quote)
+            b.append(QuoteReply(source))
+        b.append(PlainText(str))
+        target.sendMessage(b.build())
     }
 
-    suspend fun translateWithRetry(target: Contact, source: MessageSource, lines: List<String>, method: TranslationMethod) {
+    suspend fun translateWithRetry(target: Contact, source: MessageSource, lines: List<String>, method: TranslationMethod, quote: Boolean) {
         var ep: Throwable? = null
         for (i in 0 until 3) {
             try {
-                sendResult(target, source, translator.translate(lines, method))
+                sendResult(target, source, translator.translate(lines, method), quote)
                 return
             } catch (e: TranslatingException) {
                 ep = e
@@ -101,14 +102,14 @@ object PluginMain : KotlinPlugin(
                 if (args.isEmpty) {
                     // whitelist
                     if (sender.id in whitelist)
-                        translateWithRetry(group, message.source, lines, TranslationMethod("ja", "zh"))
+                        translateWithRetry(group, message.source, lines, TranslationMethod("ja", "zh"),true)
                 } else {
                     val innerArgs = args.get()
                     val method = if (innerArgs.isEmpty())
                         TranslationMethod("zh", "ja")
                     else
                         TranslationMethod(innerArgs[0], innerArgs[1])
-                    translateWithRetry(group, message.source, followingLines, method)
+                    translateWithRetry(group, message.source, followingLines, method, true)
                 }
             } catch (e: TranslatingException) {
                 logger.warning(e)
@@ -121,7 +122,7 @@ object PluginMain : KotlinPlugin(
             val args = parseCommand(lines.first())
             if (args.isEmpty || args.get().isEmpty()) return@subscribeAlways
             val followingLines = lines.drop(1)
-            translateWithRetry(sender, message.source, followingLines, TranslationMethod(args.get()[0], args.get()[1]))
+            translateWithRetry(sender, message.source, followingLines, TranslationMethod(args.get()[0], args.get()[1]), false)
         }
         listeners[2] = eventChannel.subscribeAlways<NewFriendRequestEvent> {
             logger.info("add friend")
